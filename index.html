@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indiana Jones: The Pinball Adventure</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="arcade-room">
+    <!-- Left Info / Cabinet Side Panel -->
+    <aside class="side-panel left-panel">
+      <div class="cabinet-plaque">
+        <div class="plaque-title">INDIANA JONES</div>
+        <div class="plaque-sub">THE PINBALL ADVENTURE</div>
+      </div>
+
+      <div class="panel-card">
+        <h3>Steuerung</h3>
+        <div class="control-row">
+          <span class="key-badge">Ctrl (Links)</span>
+          <span>Linker Flipper / Links lenken</span>
+        </div>
+        <div class="control-row">
+          <span class="key-badge">→ (Pfeil Rechts)</span>
+          <span>Rechter Flipper / Rechts lenken</span>
+        </div>
+        <div class="control-row">
+          <span class="key-badge">Leertaste / ↓</span>
+          <span>Abzug (Plunger) spannen &amp; feuern</span>
+        </div>
+        <div class="control-row">
+          <span class="key-badge">↑ (Pfeil Hoch)</span>
+          <span>Tisch-Stoß (Nudge)</span>
+        </div>
+        <div class="control-row">
+          <span class="key-badge">M</span>
+          <span>Sound An / Aus</span>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3>Aktive Mission &amp; Status</h3>
+        <div id="hud-mode" class="hud-value accent">BEREIT ZUM START</div>
+        <div class="hud-grid">
+          <div>
+            <span class="hud-label">Multiplikator</span>
+            <span id="hud-mult" class="hud-value">1x</span>
+          </div>
+          <div>
+            <span class="hud-label">Idol Lock</span>
+            <span id="hud-locks" class="hud-value">0 / 3</span>
+          </div>
+          <div>
+            <span class="hud-label">Modi gelöst</span>
+            <span id="hud-modes-done" class="hud-value">0 / 12</span>
+          </div>
+          <div>
+            <span class="hud-label">Extra-Bälle</span>
+            <span id="hud-extra-balls" class="hud-value">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3>Highscores</h3>
+        <ol id="highscore-list" class="highscore-list"></ol>
+      </div>
+    </aside>
+
+    <!-- Center Pinball Cabinet -->
+    <main class="cabinet-wrapper">
+      <!-- Backbox / DMD -->
+      <header class="backbox">
+        <div class="translite-banner">
+          <span class="indy-logo">INDIANA JONES</span>
+          <span class="indy-sub">THE PINBALL ADVENTURE</span>
+        </div>
+        <div class="dmd-bezel">
+          <canvas id="dmd-canvas" width="512" height="128"></canvas>
+          <div class="dmd-scanlines"></div>
+        </div>
+      </header>
+
+      <!-- Playfield Cabinet -->
+      <div class="playfield-cabinet">
+        <div class="side-rail left-rail"></div>
+        <div class="playfield-container">
+          <canvas id="pinball-canvas" width="560" height="960"></canvas>
+          <div class="glass-glare"></div>
+
+          <!-- Start / Game Over Overlay -->
+          <div id="overlay-screen" class="overlay-screen">
+            <div class="overlay-box">
+              <h1 id="overlay-title">INDIANA JONES</h1>
+              <p id="overlay-subtitle">Drücke START oder Leertaste zum Spielen</p>
+              <div id="overlay-score" class="overlay-score hidden"></div>
+              <button id="btn-start" class="btn-indy">SPIEL STARTEN (1 CREDIT)</button>
+            </div>
+          </div>
+        </div>
+        <div class="side-rail right-rail"></div>
+      </div>
+
+      <!-- Apron / Action Bar -->
+      <footer class="cabinet-apron">
+        <button id="btn-left-touch" class="touch-flipper">◀ CTRL (LINKS)</button>
+        <div class="apron-controls">
+          <button id="btn-launch" class="btn-small">ABZUG (SPACE)</button>
+          <button id="btn-sound" class="btn-small">🔊 SOUND AN</button>
+          <button id="btn-restart" class="btn-small">↻ NEU</button>
+        </div>
+        <button id="btn-right-touch" class="touch-flipper">PFEIL → (RECHTS) ▶</button>
+      </footer>
+    </main>
+
+    <!-- Right Info Panel: 12 Modes & Features -->
+    <aside class="side-panel right-panel">
+      <div class="panel-card">
+        <h3>12 Abenteuer-Modi</h3>
+        <ul id="modes-checklist" class="modes-checklist"></ul>
+      </div>
+
+      <div class="panel-card">
+        <h3>Extra-Features</h3>
+        <ul class="features-list">
+          <li><strong>Path of Adventure:</strong> Linke Rampe 3x treffen → Mini-Spielfeld oben links!</li>
+          <li><strong>Idol Multiball:</strong> 3 Bälle im Goldenen Idol (rechts) locken → 3-Ball Multiball + Jackpots!</li>
+          <li><strong>Eternal Life:</strong> Ball-Saver nach Abschuss &amp; bei Spezial-Zielen.</li>
+          <li><strong>Choose Wisely:</strong> Wähle den wahren Gral mit <code>Ctrl</code> / <code>→</code>!</li>
+          <li><strong>Mine Cart:</strong> Weiche Hindernissen auf dem DMD aus!</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="physics.js"></script>
+  <script src="modes.js"></script>
+  <script src="renderer.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
