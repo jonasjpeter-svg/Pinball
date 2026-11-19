@@ -1,13 +1,13 @@
 /**
- * 2D Pinball Physics Engine with sub-stepping, flippers, bumpers,
- * slingshots, ramps (elevated layer), targets, and Path of Adventure.
+ * 2D/3D-Height Pinball Physics Engine with sub-stepping, flippers, bumpers,
+ * slingshots, elevated 3D ramps, targets, Path of Adventure, and anti-stuck ball search.
  */
 class PinballPhysics {
   constructor(width = 560, height = 960) {
     this.width = width;
     this.height = height;
     this.gravity = 0.24;
-    this.maxSpeed = 24;
+    this.maxSpeed = 26;
     this.subSteps = 8;
 
     this.balls = [];
@@ -26,7 +26,7 @@ class PinballPhysics {
     this.tiltWarnings = 0;
     this.tilted = false;
 
-    this.onEvent = null; // callback(type, data)
+    this.onEvent = null;
     this.buildTableGeometry();
   }
 
@@ -48,7 +48,7 @@ class PinballPhysics {
     }
   }
 
-  addArcWalls(cx, cy, r, startAngle, endAngle, steps = 16, restitution = 0.45, tag = 'wall') {
+  addArcWalls(cx, cy, r, startAngle, endAngle, steps = 28, restitution = 0.45, tag = 'wall') {
     const pts = [];
     for (let i = 0; i <= steps; i++) {
       const a = startAngle + ((endAngle - startAngle) * i) / steps;
@@ -59,7 +59,7 @@ class PinballPhysics {
 
   buildTableGeometry() {
     // Outer top arch
-    this.addArcWalls(280, 220, 256, Math.PI, Math.PI * 2, 28, 0.4, 'arch');
+    this.addArcWalls(280, 220, 256, Math.PI, Math.PI * 2, 32, 0.35, 'arch');
 
     // Left outer wall
     this.addWall(24, 220, 24, 805, 0.4, 'wall');
@@ -67,20 +67,20 @@ class PinballPhysics {
 
     // Right outer wall (shooter lane outer boundary)
     this.addWall(536, 220, 536, 920, 0.4, 'shooter-wall');
-    this.addWall(502, 920, 536, 920, 0.2, 'shooter-floor');
+    this.addWall(502, 920, 536, 920, 0.15, 'shooter-floor');
 
-    // Shooter lane inner divider
-    this.addWall(500, 245, 500, 805, 0.4, 'divider');
+    // Shooter lane inner divider (with angled top tip so ball NEVER balances on it!)
+    this.addWall(500, 255, 500, 805, 0.4, 'divider');
+    this.addWall(500, 255, 505, 265, 0.4, 'divider-cap');
     this.addWall(500, 805, 360, 920, 0.35, 'drain-wall');
     this.addWall(500, 805, 502, 920, 0.4, 'divider');
 
-    // One-way gate at top of shooter lane (blocks ball from falling back into shooter lane)
+    // One-way gate at top of shooter lane (only blocks balls moving right into shooter lane)
     this.oneWayGates.push({
-      x1: 500,
-      y1: 165,
-      x2: 500,
+      x1: 496,
+      y1: 110,
+      x2: 496,
       y2: 245,
-      // Normal pointing left into playfield (-1, 0): allows moving left, blocks moving right
       allowDirX: -1,
       allowDirY: 0
     });
@@ -98,15 +98,15 @@ class PinballPhysics {
     this.addWall(300, 44, 300, 104, 0.5, 'lane-div');
     this.addWall(350, 52, 350, 108, 0.5, 'lane-div');
 
-    // Upper-left Path of Adventure outer border (separate wall on main playfield)
+    // Upper-left Path of Adventure outer border
     this.addWall(142, 130, 142, 255, 0.45, 'poa-wall');
     this.addWall(24, 372, 96, 372, 0.45, 'poa-wall');
 
     // Guide walls near ramps & Idol
     this.addWall(198, 225, 204, 295, 0.45, 'guide');
     this.addWall(375, 215, 385, 285, 0.45, 'guide');
-    this.addWall(468, 355, 498, 380, 0.5, 'idol-guide');
-    this.addWall(468, 490, 498, 468, 0.5, 'idol-guide');
+    this.addWall(470, 355, 496, 380, 0.5, 'idol-guide');
+    this.addWall(470, 490, 496, 468, 0.5, 'idol-guide');
 
     // Slingshots
     this.slingshots = [
@@ -128,17 +128,16 @@ class PinballPhysics {
     this.slingshots.forEach((s) => {
       this.addWall(s.pts[0][0], s.pts[0][1], s.pts[1][0], s.pts[1][1], 0.5, 'sling-back');
       this.addWall(s.pts[1][0], s.pts[1][1], s.pts[2][0], s.pts[2][1], 0.5, 'sling-bot');
-      // Active face handled in slingshot check
     });
 
-    // 3 Pop Bumpers (upper center triangle, matching photo)
+    // 3 Pop Bumpers
     this.bumpers = [
       { id: 'bumper-1', x: 235, y: 198, r: 23, flash: 0, color: '#ff5500' },
       { id: 'bumper-2', x: 335, y: 184, r: 23, flash: 0, color: '#ff5500' },
       { id: 'bumper-3', x: 288, y: 268, r: 23, flash: 0, color: '#ff6a00' }
     ];
 
-    // Rollovers (I-N-D-Y at top, plus Inlane Eternal Life / Return)
+    // Rollovers
     this.rollovers = [
       { id: 'indy-I', label: 'I', x: 225, y: 82, r: 14, lit: false, cooldown: 0 },
       { id: 'indy-N', label: 'N', x: 275, y: 74, r: 14, lit: false, cooldown: 0 },
@@ -150,38 +149,36 @@ class PinballPhysics {
 
     // Standup & Drop Targets
     this.targets = [
-      // Left 3-Bank Drop Targets (ADVENTURE)
       { id: 'drop-1', label: 'A', x: 118, y: 425, r: 11, hit: false, isDrop: true, flash: 0 },
       { id: 'drop-2', label: 'D', x: 112, y: 462, r: 11, hit: false, isDrop: true, flash: 0 },
       { id: 'drop-3', label: 'V', x: 106, y: 499, r: 11, hit: false, isDrop: true, flash: 0 },
-      // Right Standup Targets (Sankara / Idol)
       { id: 'stand-1', label: 'S1', x: 438, y: 525, r: 11, hit: false, isDrop: false, flash: 0 },
       { id: 'stand-2', label: 'S2', x: 444, y: 562, r: 11, hit: false, isDrop: false, flash: 0 },
       { id: 'stand-3', label: 'S3', x: 450, y: 599, r: 11, hit: false, isDrop: false, flash: 0 }
     ];
 
-    // Saucers / Scoops (Mode Start Ark & Golden Idol Lock)
+    // Saucers / Scoops
     this.saucers = [
       { id: 'mode-scoop', label: 'MODE START', x: 204, y: 342, r: 17, cooldown: 0, flash: 0 },
       { id: 'idol-lock', label: 'IDOL LOCK', x: 458, y: 425, r: 19, cooldown: 0, flash: 0 }
     ];
 
-    // Ramps (Left Ramp -> Habitrail or Path of Adventure; Right Ramp -> Habitrail)
+    // Ramps with 3D height z
     this.ramps = [
       {
         id: 'left-ramp',
         x: 168,
         y: 278,
         r: 20,
-        minVy: -2.2,
+        minVy: -2.0,
         cooldown: 0,
         path: [
-          [168, 278],
-          [158, 175],
-          [125, 130],
-          [74, 240],
-          [70, 520],
-          [78, 695]
+          [168, 278, 0],
+          [158, 175, 28],
+          [125, 130, 36],
+          [74, 240, 32],
+          [70, 520, 18],
+          [78, 695, 2]
         ]
       },
       {
@@ -189,20 +186,20 @@ class PinballPhysics {
         x: 416,
         y: 262,
         r: 20,
-        minVy: -2.2,
+        minVy: -2.0,
         cooldown: 0,
         path: [
-          [416, 262],
-          [432, 168],
-          [462, 145],
-          [480, 310],
-          [476, 540],
-          [448, 695]
+          [416, 262, 0],
+          [432, 168, 28],
+          [462, 145, 36],
+          [480, 310, 30],
+          [476, 540, 18],
+          [448, 695, 2]
         ]
       }
     ];
 
-    // Path of Adventure Mini-Playfield Pegs (x: 34..132, y: 80..345)
+    // Path of Adventure Mini-Playfield Pegs
     this.poaPegs = [
       { x: 64, y: 145, r: 7 },
       { x: 102, y: 145, r: 7 },
@@ -252,6 +249,7 @@ class PinballPhysics {
       id: Math.random().toString(36).slice(2, 8),
       x,
       y,
+      z: 0,
       vx,
       vy,
       r: 11,
@@ -261,7 +259,7 @@ class PinballPhysics {
       rampSeg: 0,
       rampT: 0,
       inPathOfAdventure: false,
-      poaSteer: 0,
+      stuckFrames: 0,
       trail: []
     };
     this.balls.push(ball);
@@ -297,7 +295,6 @@ class PinballPhysics {
   step(dtScale = 1) {
     if (this.nudgeCooldown > 0) this.nudgeCooldown--;
 
-    // Decay flashes & cooldowns
     this.bumpers.forEach((b) => (b.flash = Math.max(0, b.flash - 0.08)));
     this.slingshots.forEach((s) => (s.flash = Math.max(0, s.flash - 0.08)));
     this.targets.forEach((t) => (t.flash = Math.max(0, t.flash - 0.08)));
@@ -315,7 +312,6 @@ class PinballPhysics {
     const subDt = dtScale / this.subSteps;
 
     for (let s = 0; s < this.subSteps; s++) {
-      // Update flippers
       for (const f of this.flippers) {
         f.prevAngle = f.angle;
         const target = f.pressed ? f.activeAngle : f.restAngle;
@@ -329,7 +325,6 @@ class PinballPhysics {
         f.angularVel = (f.angle - f.prevAngle) / subDt;
       }
 
-      // Update each ball
       for (let i = this.balls.length - 1; i >= 0; i--) {
         const b = this.balls[i];
 
@@ -343,47 +338,40 @@ class PinballPhysics {
           continue;
         }
 
-        // Normal playfield gravity
+        b.z = Math.max(0, b.z * 0.85);
         b.vy += this.gravity * subDt;
         b.x += b.vx * subDt;
         b.y += b.vy * subDt;
 
-        // Air friction (very light)
         b.vx *= 1 - 0.0008 * subDt;
         b.vy *= 1 - 0.0008 * subDt;
 
-        // Shooter exit check
-        if (b.inShooter && b.y < 190 && b.x < 495) {
+        if (b.inShooter && b.x < 490 && b.y < 230) {
           b.inShooter = false;
           this.emit('ball-entered-playfield', { ball: b });
         }
 
-        // Clamp max speed
         const spd = Math.hypot(b.vx, b.vy);
         if (spd > this.maxSpeed) {
           b.vx = (b.vx / spd) * this.maxSpeed;
           b.vy = (b.vy / spd) * this.maxSpeed;
         }
 
-        // Collide walls
         for (const w of this.walls) {
           this.resolveSegmentCollision(b, w.x1, w.y1, w.x2, w.y2, w.restitution);
         }
 
-        // One-way gates
         for (const g of this.oneWayGates) {
           const dot = b.vx * g.allowDirX + b.vy * g.allowDirY;
-          if (dot < 0) {
+          if (dot < 0 && !b.inShooter) {
             this.resolveSegmentCollision(b, g.x1, g.y1, g.x2, g.y2, 0.45);
           }
         }
 
-        // Flippers
         for (const f of this.flippers) {
           this.resolveFlipperCollision(b, f);
         }
 
-        // Slingshots
         for (const sl of this.slingshots) {
           if (this.resolveSegmentCollision(b, sl.kickX1, sl.kickY1, sl.kickX2, sl.kickY2, 0.6)) {
             if (!this.tilted) {
@@ -395,7 +383,6 @@ class PinballPhysics {
           }
         }
 
-        // Pop Bumpers
         for (const bmp of this.bumpers) {
           const dx = b.x - bmp.x;
           const dy = b.y - bmp.y;
@@ -419,7 +406,6 @@ class PinballPhysics {
           }
         }
 
-        // Targets
         for (const t of this.targets) {
           if (t.isDrop && t.hit) continue;
           const dx = b.x - t.x;
@@ -441,7 +427,6 @@ class PinballPhysics {
           }
         }
 
-        // Rollovers
         for (const ro of this.rollovers) {
           if (ro.cooldown > 0) continue;
           const dist = Math.hypot(b.x - ro.x, b.y - ro.y);
@@ -451,14 +436,12 @@ class PinballPhysics {
           }
         }
 
-        // Saucers / Scoops
         for (const sc of this.saucers) {
           if (sc.cooldown > 0) continue;
           const dist = Math.hypot(b.x - sc.x, b.y - sc.y);
           if (dist < sc.r) {
             sc.cooldown = 90;
             sc.flash = 1;
-            // Eject ball back down toward playfield
             b.x = sc.x - (sc.id === 'idol-lock' ? 24 : 0);
             b.y = sc.y + sc.r + 6;
             b.vx = sc.id === 'idol-lock' ? -5.2 : (Math.random() - 0.5) * 3;
@@ -467,7 +450,6 @@ class PinballPhysics {
           }
         }
 
-        // Ramps
         for (const rm of this.ramps) {
           if (rm.cooldown > 0) continue;
           const dist = Math.hypot(b.x - rm.x, b.y - rm.y);
@@ -481,7 +463,6 @@ class PinballPhysics {
           }
         }
 
-        // Drain check
         if (b.y > this.height + 24) {
           this.balls.splice(i, 1);
           this.emit('drain', { ball: b });
@@ -489,10 +470,28 @@ class PinballPhysics {
       }
     }
 
-    // Record trails once per frame
+    // Anti-stuck Ball Search (never let a ball freeze outside plunger)
     for (const b of this.balls) {
-      b.trail.push({ x: b.x, y: b.y });
+      b.trail.push({ x: b.x, y: b.y, z: b.z });
       if (b.trail.length > 8) b.trail.shift();
+
+      const atPlunger = b.inShooter && b.y > 780;
+      if (!atPlunger && !b.onRamp) {
+        const spd = Math.hypot(b.vx, b.vy);
+        if (spd < 0.25) {
+          b.stuckFrames++;
+          if (b.stuckFrames > 75) {
+            // Ball search kick!
+            b.vx = (b.x > 280 ? -3.5 : 3.5) + (Math.random() - 0.5) * 2;
+            b.vy = 3.5;
+            b.stuckFrames = 0;
+          }
+        } else {
+          b.stuckFrames = 0;
+        }
+      } else {
+        b.stuckFrames = 0;
+      }
     }
   }
 
@@ -510,8 +509,9 @@ class PinballPhysics {
         b.onRamp = false;
         b.x = p2[0];
         b.y = p2[1];
+        b.z = 0;
         b.vx = 0;
-        b.vy = 3.5;
+        b.vy = 3.8;
         return;
       }
     }
@@ -519,16 +519,17 @@ class PinballPhysics {
     const cur2 = pts[b.rampSeg + 1];
     b.x = cur1[0] + (cur2[0] - cur1[0]) * b.rampT;
     b.y = cur1[1] + (cur2[1] - cur1[1]) * b.rampT;
+    b.z = cur1[2] + (cur2[2] - cur1[2]) * b.rampT;
   }
 
   stepPathOfAdventureBall(b, subDt) {
-    // Mini-playfield bounds: x in [36, 130], y in [78, 355]
     const leftPressed = this.flippers[0].pressed;
     const rightPressed = this.flippers[1].pressed;
     const steer = (rightPressed ? 0.22 : 0) - (leftPressed ? 0.22 : 0);
 
+    b.z = 22;
     b.vx += steer * subDt;
-    b.vy += 0.11 * subDt; // gentler slope in mini-playfield
+    b.vy += 0.11 * subDt;
     b.vx *= 1 - 0.01 * subDt;
     b.x += b.vx * subDt;
     b.y += b.vy * subDt;
@@ -558,10 +559,10 @@ class PinballPhysics {
       }
     }
 
-    // Exit at bottom of Path of Adventure
     if (b.y > 350) {
       const centerHit = Math.abs(b.x - 83) < 22;
       b.inPathOfAdventure = false;
+      b.z = 0;
       b.x = 88;
       b.y = 385;
       b.vx = 1.5;
@@ -628,7 +629,6 @@ class PinballPhysics {
       b.x = cx + nx * (minDist + 0.25);
       b.y = cy + ny * (minDist + 0.25);
 
-      // Surface velocity at contact point due to flipper rotation
       const rx = cx - f.x;
       const ry = cy - f.y;
       const surfVx = -f.angularVel * ry;
@@ -643,7 +643,6 @@ class PinballPhysics {
         b.vx -= (1 + restitution) * relVn * nx;
         b.vy -= (1 + restitution) * relVn * ny;
 
-        // Extra crisp upward impulse when actively flipping
         if (Math.abs(f.angularVel) > 0.05) {
           b.vx += surfVx * 0.45;
           b.vy += surfVy * 0.45;
