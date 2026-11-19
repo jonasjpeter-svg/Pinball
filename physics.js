@@ -1,14 +1,15 @@
 /**
- * 2D/3D-Height Pinball Physics Engine with sub-stepping, flippers, bumpers,
- * slingshots, elevated 3D ramps, targets, Path of Adventure, and anti-stuck ball search.
+ * High-Precision 960Hz Pinball Physics Engine (16 sub-steps/frame)
+ * Zero-tunneling flippers with authentic Williams-style shot aiming,
+ * elevated 3D ramps, Path of Adventure, and anti-stuck ball search.
  */
 class PinballPhysics {
   constructor(width = 560, height = 960) {
     this.width = width;
     this.height = height;
-    this.gravity = 0.24;
-    this.maxSpeed = 26;
-    this.subSteps = 8;
+    this.gravity = 0.23;
+    this.maxSpeed = 27;
+    this.subSteps = 16;
 
     this.balls = [];
     this.walls = [];
@@ -48,7 +49,7 @@ class PinballPhysics {
     }
   }
 
-  addArcWalls(cx, cy, r, startAngle, endAngle, steps = 28, restitution = 0.45, tag = 'wall') {
+  addArcWalls(cx, cy, r, startAngle, endAngle, steps = 32, restitution = 0.45, tag = 'wall') {
     const pts = [];
     for (let i = 0; i <= steps; i++) {
       const a = startAngle + ((endAngle - startAngle) * i) / steps;
@@ -59,7 +60,7 @@ class PinballPhysics {
 
   buildTableGeometry() {
     // Outer top arch
-    this.addArcWalls(280, 220, 256, Math.PI, Math.PI * 2, 32, 0.35, 'arch');
+    this.addArcWalls(280, 220, 256, Math.PI, Math.PI * 2, 36, 0.35, 'arch');
 
     // Left outer wall
     this.addWall(24, 220, 24, 805, 0.4, 'wall');
@@ -69,13 +70,13 @@ class PinballPhysics {
     this.addWall(536, 220, 536, 920, 0.4, 'shooter-wall');
     this.addWall(502, 920, 536, 920, 0.15, 'shooter-floor');
 
-    // Shooter lane inner divider (with angled top tip so ball NEVER balances on it!)
+    // Shooter lane inner divider with angled cap
     this.addWall(500, 255, 500, 805, 0.4, 'divider');
     this.addWall(500, 255, 505, 265, 0.4, 'divider-cap');
     this.addWall(500, 805, 360, 920, 0.35, 'drain-wall');
     this.addWall(500, 805, 502, 920, 0.4, 'divider');
 
-    // One-way gate at top of shooter lane (only blocks balls moving right into shooter lane)
+    // One-way gate at top of shooter lane
     this.oneWayGates.push({
       x1: 496,
       y1: 110,
@@ -85,13 +86,13 @@ class PinballPhysics {
       allowDirY: 0
     });
 
-    // Left Inlane / Outlane divider
-    this.addWall(64, 675, 64, 790, 0.4, 'inlane');
-    this.addWall(64, 790, 166, 868, 0.3, 'inlane');
+    // Left Inlane / Outlane divider (smoothly feeds Left Flipper at 166, 868)
+    this.addWall(64, 675, 64, 790, 0.35, 'inlane');
+    this.addWall(64, 790, 162, 864, 0.22, 'inlane');
 
-    // Right Inlane / Outlane divider
-    this.addWall(462, 675, 462, 790, 0.4, 'inlane');
-    this.addWall(462, 790, 360, 868, 0.3, 'inlane');
+    // Right Inlane / Outlane divider (smoothly feeds Right Flipper at 360, 868)
+    this.addWall(462, 675, 462, 790, 0.35, 'inlane');
+    this.addWall(462, 790, 364, 864, 0.22, 'inlane');
 
     // Upper lane dividers (I-N-D-Y)
     this.addWall(250, 52, 250, 108, 0.5, 'lane-div');
@@ -169,8 +170,8 @@ class PinballPhysics {
         id: 'left-ramp',
         x: 168,
         y: 278,
-        r: 20,
-        minVy: -2.0,
+        r: 22,
+        minVy: -1.8,
         cooldown: 0,
         path: [
           [168, 278, 0],
@@ -185,8 +186,8 @@ class PinballPhysics {
         id: 'right-ramp',
         x: 416,
         y: 262,
-        r: 20,
-        minVy: -2.0,
+        r: 22,
+        minVy: -1.8,
         cooldown: 0,
         path: [
           [416, 262, 0],
@@ -211,35 +212,37 @@ class PinballPhysics {
       { x: 84, y: 292, r: 8 }
     ];
 
-    // Main Flippers
+    // Main Flippers (tuned length & radius for crisp, reliable hits)
     this.flippers = [
       {
         id: 'left',
-        x: 166,
+        x: 164,
         y: 868,
-        length: 78,
-        baseRadius: 11,
-        tipRadius: 6,
-        restAngle: 0.48,
+        length: 80,
+        baseRadius: 12,
+        tipRadius: 7,
+        restAngle: 0.46,
         activeAngle: -0.58,
-        angle: 0.48,
-        prevAngle: 0.48,
+        angle: 0.46,
+        prevAngle: 0.46,
         angularVel: 0,
-        pressed: false
+        pressed: false,
+        justFiredTimer: 0
       },
       {
         id: 'right',
-        x: 360,
+        x: 362,
         y: 868,
-        length: 78,
-        baseRadius: 11,
-        tipRadius: 6,
-        restAngle: Math.PI - 0.48,
+        length: 80,
+        baseRadius: 12,
+        tipRadius: 7,
+        restAngle: Math.PI - 0.46,
         activeAngle: Math.PI + 0.58,
-        angle: Math.PI - 0.48,
-        prevAngle: Math.PI - 0.48,
+        angle: Math.PI - 0.46,
+        prevAngle: Math.PI - 0.46,
         angularVel: 0,
-        pressed: false
+        pressed: false,
+        justFiredTimer: 0
       }
     ];
   }
@@ -269,7 +272,12 @@ class PinballPhysics {
   setFlipper(side, pressed) {
     if (this.tilted) pressed = false;
     const f = this.flippers.find((fl) => fl.id === side);
-    if (f) f.pressed = pressed;
+    if (f) {
+      if (pressed && !f.pressed) {
+        f.justFiredTimer = 10; // 10 frames active solenoid window
+      }
+      f.pressed = pressed;
+    }
   }
 
   nudge(dirX = 0, dirY = -1) {
@@ -308,6 +316,9 @@ class PinballPhysics {
     this.rollovers.forEach((ro) => {
       if (ro.cooldown > 0) ro.cooldown--;
     });
+    this.flippers.forEach((f) => {
+      if (f.justFiredTimer > 0) f.justFiredTimer--;
+    });
 
     const subDt = dtScale / this.subSteps;
 
@@ -315,12 +326,13 @@ class PinballPhysics {
       for (const f of this.flippers) {
         f.prevAngle = f.angle;
         const target = f.pressed ? f.activeAngle : f.restAngle;
-        const speed = f.pressed ? 0.34 : 0.22;
+        // Max ~0.036 rad per substep -> tip moves <= 2.9px/substep (zero tunneling!)
+        const maxStep = (f.pressed ? 0.42 : 0.24) * subDt;
         const diff = target - f.angle;
-        if (Math.abs(diff) <= speed * subDt * 8) {
+        if (Math.abs(diff) <= maxStep) {
           f.angle = target;
         } else {
-          f.angle += Math.sign(diff) * speed * subDt * 8;
+          f.angle += Math.sign(diff) * maxStep;
         }
         f.angularVel = (f.angle - f.prevAngle) / subDt;
       }
@@ -343,8 +355,8 @@ class PinballPhysics {
         b.x += b.vx * subDt;
         b.y += b.vy * subDt;
 
-        b.vx *= 1 - 0.0008 * subDt;
-        b.vy *= 1 - 0.0008 * subDt;
+        b.vx *= 1 - 0.0007 * subDt;
+        b.vy *= 1 - 0.0007 * subDt;
 
         if (b.inShooter && b.x < 490 && b.y < 230) {
           b.inShooter = false;
@@ -375,8 +387,8 @@ class PinballPhysics {
         for (const sl of this.slingshots) {
           if (this.resolveSegmentCollision(b, sl.kickX1, sl.kickY1, sl.kickX2, sl.kickY2, 0.6)) {
             if (!this.tilted) {
-              b.vx += sl.kickNormalX * 7.5;
-              b.vy += sl.kickNormalY * 7.5;
+              b.vx += sl.kickNormalX * 7.8;
+              b.vy += sl.kickNormalY * 7.8;
               sl.flash = 1;
               this.emit('slingshot', { id: sl.id, ball: b });
             }
@@ -394,7 +406,7 @@ class PinballPhysics {
             b.x = bmp.x + nx * (minDist + 0.5);
             b.y = bmp.y + ny * (minDist + 0.5);
             if (!this.tilted) {
-              const kick = 9.2;
+              const kick = 9.5;
               b.vx = nx * kick + (Math.random() - 0.5) * 1.2;
               b.vy = ny * kick + (Math.random() - 0.5) * 1.2;
               bmp.flash = 1;
@@ -470,7 +482,6 @@ class PinballPhysics {
       }
     }
 
-    // Anti-stuck Ball Search (never let a ball freeze outside plunger)
     for (const b of this.balls) {
       b.trail.push({ x: b.x, y: b.y, z: b.z });
       if (b.trail.length > 8) b.trail.shift();
@@ -481,7 +492,6 @@ class PinballPhysics {
         if (spd < 0.25) {
           b.stuckFrames++;
           if (b.stuckFrames > 75) {
-            // Ball search kick!
             b.vx = (b.x > 280 ? -3.5 : 3.5) + (Math.random() - 0.5) * 2;
             b.vy = 3.5;
             b.stuckFrames = 0;
@@ -623,11 +633,11 @@ class PinballPhysics {
     const dy = b.y - cy;
     const dist = Math.hypot(dx, dy);
 
-    if (dist < minDist && dist > 0.0001) {
+    if (dist < minDist && dist > 0.001) {
       const nx = dx / dist;
       const ny = dy / dist;
-      b.x = cx + nx * (minDist + 0.25);
-      b.y = cy + ny * (minDist + 0.25);
+      b.x = cx + nx * (minDist + 0.4);
+      b.y = cy + ny * (minDist + 0.4);
 
       const rx = cx - f.x;
       const ry = cy - f.y;
@@ -642,11 +652,19 @@ class PinballPhysics {
         const restitution = 0.55;
         b.vx -= (1 + restitution) * relVn * nx;
         b.vy -= (1 + restitution) * relVn * ny;
+      }
 
-        if (Math.abs(f.angularVel) > 0.05) {
-          b.vx += surfVx * 0.45;
-          b.vy += surfVy * 0.45;
-        }
+      // Active flipper strike! Guarantee crisp, realistic upward shot
+      const isSwingingUp = (f.id === 'left' && f.angularVel < -0.02) || (f.id === 'right' && f.angularVel > 0.02);
+      if (isSwingingUp || (f.justFiredTimer > 0 && ny < 0.2)) {
+        const power = 16.5 + t * 7.5; // 16.5 near base up to 24.0 at tip!
+        // Realistic pinball shot angle: early hit (near base) shoots across, late hit (tip) shoots steeper
+        const aimAngle = f.id === 'left'
+          ? -Math.PI / 2 + (0.45 - t * 0.65)
+          : -Math.PI / 2 - (0.45 - t * 0.65);
+        b.vx = Math.cos(aimAngle) * power * 0.75 + (b.vx * 0.15);
+        b.vy = Math.min(b.vy, -Math.abs(Math.sin(aimAngle) * power));
+        f.justFiredTimer = 0;
       }
     }
   }
