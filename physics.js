@@ -86,22 +86,21 @@ class PinballPhysics {
       allowDirY: 0
     });
 
-    // Left Inlane / Outlane divider (smoothly feeds Left Flipper at 166, 868)
-    this.addWall(64, 675, 64, 790, 0.35, 'inlane');
-    this.addWall(64, 790, 162, 864, 0.22, 'inlane');
+    // Left Inlane / Outlane divider (tangent to Left Flipper top surface at rest!)
+    this.addWall(64, 675, 64, 790, 0.25, 'inlane');
+    this.addWall(64, 790, 168, 859, 0.12, 'inlane');
 
-    // Right Inlane / Outlane divider (smoothly feeds Right Flipper at 360, 868)
-    this.addWall(462, 675, 462, 790, 0.35, 'inlane');
-    this.addWall(462, 790, 364, 864, 0.22, 'inlane');
+    // Right Inlane / Outlane divider (tangent to Right Flipper top surface at rest!)
+    this.addWall(462, 675, 462, 790, 0.25, 'inlane');
+    this.addWall(462, 790, 358, 859, 0.12, 'inlane');
 
     // Upper lane dividers (I-N-D-Y)
     this.addWall(250, 52, 250, 108, 0.5, 'lane-div');
     this.addWall(300, 44, 300, 104, 0.5, 'lane-div');
     this.addWall(350, 52, 350, 108, 0.5, 'lane-div');
 
-    // Upper-left Path of Adventure outer border
-    this.addWall(142, 130, 142, 255, 0.45, 'poa-wall');
-    this.addWall(24, 372, 96, 372, 0.45, 'poa-wall');
+    // Left orbit guide (open at bottom so ball never gets trapped under Path of Adventure!)
+    this.addWall(142, 130, 142, 245, 0.4, 'poa-wall');
 
     // Guide walls near ramps & Idol
     this.addWall(198, 225, 204, 295, 0.45, 'guide');
@@ -212,15 +211,15 @@ class PinballPhysics {
       { x: 84, y: 292, r: 8 }
     ];
 
-    // Main Flippers (tuned length & radius for crisp, reliable hits)
+    // Main Flippers (flush with inlane guides for seamless ball feed)
     this.flippers = [
       {
         id: 'left',
         x: 164,
         y: 868,
         length: 80,
-        baseRadius: 12,
-        tipRadius: 7,
+        baseRadius: 10,
+        tipRadius: 6,
         restAngle: 0.46,
         activeAngle: -0.58,
         angle: 0.46,
@@ -234,8 +233,8 @@ class PinballPhysics {
         x: 362,
         y: 868,
         length: 80,
-        baseRadius: 12,
-        tipRadius: 7,
+        baseRadius: 10,
+        tipRadius: 6,
         restAngle: Math.PI - 0.46,
         activeAngle: Math.PI + 0.58,
         angle: Math.PI - 0.46,
@@ -539,18 +538,18 @@ class PinballPhysics {
 
     b.z = 22;
     b.vx += steer * subDt;
-    b.vy += 0.11 * subDt;
-    b.vx *= 1 - 0.01 * subDt;
+    b.vy += 0.16 * subDt;
+    b.vx *= 1 - 0.015 * subDt;
     b.x += b.vx * subDt;
     b.y += b.vy * subDt;
 
     if (b.x < 44) {
       b.x = 44;
-      b.vx = Math.abs(b.vx) * 0.6;
+      b.vx = Math.abs(b.vx) * 0.4;
     }
     if (b.x > 122) {
       b.x = 122;
-      b.vx = -Math.abs(b.vx) * 0.6;
+      b.vx = -Math.abs(b.vx) * 0.4;
     }
 
     for (const peg of this.poaPegs) {
@@ -563,8 +562,8 @@ class PinballPhysics {
         const ny = dy / dist;
         b.x = peg.x + nx * minDist;
         b.y = peg.y + ny * minDist;
-        b.vx = nx * 3.2 + (Math.random() - 0.5) * 0.8;
-        b.vy = ny * 3.2;
+        b.vx = nx * 2.1 + (Math.random() - 0.5) * 0.5;
+        b.vy = Math.max(-0.5, ny * 1.8);
         this.emit('poa-peg', { ball: b });
       }
     }

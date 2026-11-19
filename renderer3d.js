@@ -376,7 +376,7 @@ class Pinball3DRenderer {
       this.bumperMeshes.push({ data: b, capMat, light, grp });
     }
 
-    // 4. 3D Flippers (matching exact physics geometry)
+    // 4. 3D Flippers (flush with inlane guides, no protruding round step!)
     this.flipperMeshes = [];
     for (const f of this.physics.flippers) {
       const pos = this.to3D(f.x, f.y, 0);
@@ -385,7 +385,7 @@ class Pinball3DRenderer {
 
       const len = f.length * this.scale;
       const body = new THREE.Mesh(
-        new THREE.BoxGeometry(len, 0.4, 0.34),
+        new THREE.BoxGeometry(len, 0.4, 0.32),
         new THREE.MeshStandardMaterial({ color: 0xf5b942, roughness: 0.25, metalness: 0.45 })
       );
       body.position.x = len / 2;
@@ -393,13 +393,16 @@ class Pinball3DRenderer {
       pivot.add(body);
 
       const rubber = new THREE.Mesh(
-        new THREE.BoxGeometry(len + 0.06, 0.3, 0.4),
+        new THREE.BoxGeometry(len + 0.04, 0.3, 0.38),
         new THREE.MeshStandardMaterial({ color: 0xb81d13, roughness: 0.65 })
       );
       rubber.position.x = len / 2;
       pivot.add(rubber);
 
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.44, 16), chromeMat);
+      const cap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.19, 0.19, 0.41, 16),
+        new THREE.MeshStandardMaterial({ color: 0xf5b942, roughness: 0.25, metalness: 0.45 })
+      );
       pivot.add(cap);
 
       this.playfieldGroup.add(pivot);
